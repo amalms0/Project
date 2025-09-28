@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RegenerateField — Light Prototype (Gauges)</title>
+<style>
+  :root{
+    --bg:#f6faf8;
+    --panel:#ffffff;
+    --muted:#556b6b;
+    --accent1:#2b8a74; /* deep teal */
+    --accent2:#7b61ff; /* purple */
+    --accent3:#ffb020; /* warm */
+    --danger:#e85a4f;
+    --success:#2f9e44;
+    --glass: rgba(0,0,0,0.04);
+    --card-border: rgba(16,24,24,0.06);
+    font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#f7fcfb 0%, #eef7f5 100%);color:#153535}
+  .app{max-width:1200px;margin:20px auto;padding:18px;border-radius:12px;background:var(--panel);box-shadow:0 8px 30px rgba(31,41,45,0.06);border:1px solid var(--card-border)}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+  .logo{
+    width:70px;height:70px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;font-weight:700;box-shadow:0 8px 20px rgba(43,138,116,0.12)
+  }
+  h1{margin:0;font-size:20px}
+  .subtitle{color:var(--muted);font-size:13px;margin-top:4px}
+  .layout{display:grid;grid-template-columns:380px 1fr;gap:18px}
+  .panel{background:var(--panel);border-radius:10px;padding:14px;border:1px solid var(--card-border)}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  input[type="number"], select, input[type="text"]{
+    width:100%;padding:10px;border-radius:8px;border:1px solid #e6efee;background:transparent;color:#072227;font-size:14px;
+  }
+  .row{display:flex;gap:10px;align-items:center}
+  .btn{
+    background:linear-gradient(90deg,var(--accent1),var(--accent2));color:white;padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:700;
+  }
+  .btn.ghost{background:transparent;border:1px solid var(--card-border);color:var(--muted);font-weight:600}
+  .gauge-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between}
+  .gauge{width:170px;height:170px;background:linear-gradient(180deg,#ffffff,#f2fbf9);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--card-border);box-shadow: 0 8px 20px rgba(16,24,24,0.03)}
+  .g-title{font-size:12px;color:var(--muted);margin-top:8px}
+  .big-num{font-size:22px;font-weight:800;color:#0e3b36}
+  .kpis{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
+  .kpi-card{flex:1;min-width:170px;background:linear-gradient(180deg,#ffffff,#f4fbf9);padding:10px;border-radius:10px;border:1px solid var(--card-border)}
+  .actions{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+  .action-chip{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:linear-gradient(90deg,#fff,#f6fffb);border:1px solid var(--card-border)}
+  .icon-box{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff}
+  .urg-high .icon-box{background:linear-gradient(90deg,#ff8a80,#ff5252)}
+  .urg-med .icon-box{background:linear-gradient(90deg,#ffd580,#ffb020);color:#2b1a00}
+  .urg-low .icon-box{background:linear-gradient(90deg,#7ef2d6,#2b8a74)}
+  .action-bullets{font-size:13px;color:#163c3a}
+  .muted{color:var(--muted);font-size:13px}
+  .roadmap{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  .road-card{padding:10px;border-radius:8px;background:linear-gradient(180deg,#ffffff,#f7fffb);border:1px solid var(--card-border)}
+  footer{display:flex;justify-content:space-between;align-items:center;margin-top:16px;color:var(--muted)}
+  /* gauge svg styles */
+  .gauge svg{width:120px;height:120px}
+  .small-label{font-size:11px;color:var(--muted)}
+  /* responsive */
+  @media (max-width:980px){
+    .layout{grid-template-columns:1fr; }
+    .gauge{width:140px;height:140px}
+    .roadmap{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app" role="application" aria-label="RegenerateField prototype light">
+  <header>
+    <div class="logo">RF</div>
+    <div>
+      <h1>RegenerateField — Farmer Gauge Prototype</h1>
+      <div class="subtitle">Light, visual & farm-friendly. Enter a few numbers — get instant gauges, priority action chips and a short roadmap.</div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- left: inputs -->
+    <section class="panel" aria-labelledby="inputs">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div><strong>Field Inputs</strong><div class="muted">Quick values — no heavy sensors needed</div></div>
+        <div><button class="btn ghost" id="loadSample">Sample</button></div>
+      </div>
+
+      <div style="margin-top:8px">
+        <label>Profile name</label>
+        <input id="fname" placeholder="e.g., Kuttanad-paddy-01"/>
+      </div>
+
+      <div style="height:10px"></div>
+
+      <div>
+        <label>Soil pH</label>
+        <div class="row"><input id="ph" type="number" step="0.1" min="3.5" max="9" placeholder="5.2" style="flex:1"/><div style="width:8px"></div><button class="btn" id="analyzeBtn">Analyze</button></div>
+      </div>
+
+      <div style="height:8px"></div>
+
+      <div>
+        <label>Soil Organic Matter (%)</label>
+        <input id="som" type="number" step="0.1" min="0" max="20" placeholder="0.8"/>
+      </div>
+
+      <div style="height:8px"></div>
+
+      <div>
+        <label>Soil moisture (%)</label>
+        <input id="moist" type="number" step="1" min="0" max="100" placeholder="14"/>
+      </div>
+
+      <div style="height:8px"></div>
+
+      <div>
+        <label>Nitrate (NO₃⁻ mg/L) — optional</label>
+        <input id="nitrate" type="number" step="1" min="0" max="200" placeholder="12"/>
+      </div>
+
+      <div style="height:8px"></div>
+
+      <div>
+        <label>Air temperature (°C)</label>
+        <input id="temp" type="number" step="0.5" min="-10" max="60" placeholder="29"/>
+      </div>
+
+      <div style="height:8px"></div>
+
+      <div>
+        <label>Crop</label>
+        <select id="crop">
+          <option value="paddy">Paddy / Rice</option>
+          <option value="maize">Maize</option>
+          <option value="vegetable">Vegetables</option>
+          <option value="legume">Legume</option>
+          <option value="mixed">Mixed/Other</option>
+        </select>
+      </div>
+
+      <div style="height:10px"></div>
+
+      <div>
+        <label>Farmer note (optional)</label>
+        <input id="notes" placeholder="e.g., few earthworms, some yellow leaves"/>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="saveProfile">Save</button>
+        <button class="btn ghost" id="clearBtn">Clear</button>
+      </div>
+
+      <div style="height:12px"></div>
+      <div class="muted">Saved profiles appear after saving — tap to load and analyze quickly.</div>
+      <div id="profiles" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+    </section>
+
+    <!-- right: gauges & actions -->
+    <section>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div style="flex:1">
+          <div class="gauge-row" id="gaugesTop">
+            <!-- gauges inserted by JS -->
+          </div>
+          <div class="kpis" style="margin-top:10px">
+            <div class="kpi-card">
+              <div class="muted small-label">Organicity Score</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+                <div style="font-size:28px;font-weight:900;color:var(--accent1)" id="score">—</div>
+                <div style="text-align:right">
+                  <div class="muted small-label">Est CO₂e /ha /yr</div>
+                  <div style="font-weight:800;font-size:18px;color:#224b46" id="estCO2">—</div>
+                </div>
+              </div>
+              <div style="height:10px"></div>
+              <div class="muted small-label">Quick read:</div>
+              <div id="summaryShort" style="font-weight:700;margin-top:6px">Enter values and press Analyze.</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="muted small-label">Immediate Priority</div>
+              <div id="priority" style="margin-top:8px;font-weight:900;color:#6b3b2b">—</div>
+              <div style="height:6px"></div>
+              <div id="priorityShort" class="muted small-label">Action chips below show simple steps.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="width:320px">
+          <div class="panel" style="padding:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><strong>Action Chips</strong><div class="muted small-label">Tap for details</div></div>
+              <div><button class="btn ghost" id="downloadReport">Report</button></div>
+            </div>
+
+            <div class="actions" id="actionsContainer" style="margin-top:12px">
+              <!-- action chips inserted by JS -->
+            </div>
+
+          </div>
+
+          <div class="roadmap" style="margin-top:12px" id="roadmapContainer">
+            <!-- 3 roadmap cards -->
+          </div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="panel" style="padding:12px;margin-top:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Why these chips?</strong><div class="muted small-label">Simple science for farmers</div></div>
+          <div><button class="btn ghost" id="toggleExplain">Show</button></div>
+        </div>
+        <div id="explainBox" style="display:none;margin-top:10px" class="muted small-label"></div>
+      </div>
+
+      <footer>
+        <div class="muted small-label">Prototype — Local save only • Use lab tests where possible</div>
+        <div><button class="btn ghost" id="printPage">Open Report</button></div>
+      </footer>
+
+    </section>
+  </main>
+</div>
+
+<script>
+/* Interactive light prototype with gauges and expressive chips */
+
+// Helper DOM
+const el = id => document.getElementById(id);
+
+// sample default
+const sample = {name:'Kuttanad-paddy-01', ph:5.2, som:0.8, moist:14, nitrate:18, temp:29, crop:'paddy', notes:'few earthworms'};
+
+// create gauge element (SVG radial gauge)
+function createGauge(id,label, value, min, max, unit, color){
+  const g = document.createElement('div');
+  g.className = 'gauge';
+  g.id = id;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 120 120');
+  // background arc
+  const bgArc = document.createElementNS('http://www.w3.org/2000/svg','path');
+  bgArc.setAttribute('d', arcPath(60,60,48,30,150));
+  bgArc.setAttribute('stroke','#e6f3ee');
+  bgArc.setAttribute('stroke-width','8');
+  bgArc.setAttribute('fill','none');
+  bgArc.setAttribute('stroke-linecap','round');
+
+  // value arc
+  const valArc = document.createElementNS('http://www.w3.org/2000/svg','path');
+  valArc.setAttribute('d', arcPath(60,60,48,30,30)); // placeholder
+  valArc.setAttribute('stroke',color || '#2b8a74');
+  valArc.setAttribute('stroke-width','8');
+  valArc.setAttribute('fill','none');
+  valArc.setAttribute('stroke-linecap','round');
+  valArc.setAttribute('id', id+'-arc');
+
+  // center number
+  const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+  text.setAttribute('x','60'); text.setAttribute('y','64');
+  text.setAttribute('text-anchor','middle'); text.setAttribute('font-size','20'); text.setAttribute('fill','#0b3b35'); text.setAttribute('id', id+'-label');
+  text.textContent = value;
+
+  svg.appendChild(bgArc);
+  svg.appendChild(valArc);
+  svg.appendChild(text);
+
+  const lb = document.createElement('div');
+  lb.className = 'g-title';
+  lb.innerHTML = `<div style="font-weight:800" id="${id}-read">${value}${unit||''}</div><div class="small-label">${label}</div>`;
+
+  g.appendChild(svg);
+  g.appendChild(lb);
+  return g;
+}
+
+// arc path helper: center cx,cy,r,startAngle,endAngle (degrees)
+function arcPath(cx,cy,r,startAngle,endAngle){
+  // convert deg to rad, SVG arc uses large-arc-flag and sweep-flag
+  const start = polar(cx,cy,r,startAngle);
+  const end = polar(cx,cy,r,endAngle);
+  const large = (endAngle - startAngle) <= 180 ? 0 : 1;
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y}`;
+}
+function polar(cx,cy,r,deg){
+  const rad = (deg - 90) * Math.PI/180.0;
+  return {x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad)};
+}
+
+// place gauges top
+const gaugesTop = el('gaugesTop');
+['ph','temp','moist','som','nitrate'].forEach(k=>{
+  // label mapping
+  const map = {ph:'Soil pH', temp:'Air °C', moist:'Soil moisture %', som:'Soil Organic Matter %', nitrate:'Nitrate mg/L'};
+  const unit = (k==='temp')?'°C':(k==='moist'?'%':(k==='som'?'%':''));
+  const color = (k==='ph'? '#7b61ff' : (k==='temp'?'#ff8a80':(k==='moist'?'#2b8a74':'#ffb020')));
+  const g = createGauge('g_'+k, map[k], '—',0,100,unit,color);
+  gaugesTop.appendChild(g);
+});
+
+// compute organicy score (same logic as earlier)
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function computeScore(inputs){
+  const somScore = clamp((inputs.som || 0) / 3 * 30, 0, 30);
+  let p = inputs.ph || 6.5;
+  let pHScore = 20 - Math.abs(6.5 - p) * 6;
+  pHScore = clamp(pHScore,0,20);
+  let m = inputs.moist || 20;
+  let moistScore = 15 - Math.abs(24 - m) * 0.7;
+  moistScore = clamp(moistScore,0,15);
+  let n = inputs.nitrate || 10;
+  let nitScore = n < 30 ? 20 : clamp(20 - (n - 30) * 0.5, 0, 20);
+  let t = inputs.temp || 26;
+  let tempScore = 15 - Math.abs(26 - t) * 0.6;
+  tempScore = clamp(tempScore,0,15);
+  const raw = somScore + pHScore + moistScore + nitScore + tempScore;
+  const score = Math.round(clamp(raw,0,100));
+  return {score, breakdown:{som:Math.round(somScore),pH:Math.round(pHScore),moist:Math.round(moistScore),nitrate:Math.round(nitScore),temp:Math.round(tempScore)}};
+}
+function estimateCO2(inputs){
+  let base = 0;
+  if((inputs.som||0) < 1.5) base = 2.9;
+  else if((inputs.som||0) < 3) base = 1.6;
+  else base = 0.6;
+  const af = (inputs.crop !== 'vegetable' && (inputs.notes || '').toLowerCase().includes('space')) ? 2.5 : 1.2;
+  const factor = clamp((100 - computeScore(inputs).score) / 100 + 0.6, 0.4, 1.4);
+  return (base + af) * factor;
+}
+
+function immediateActions(inputs){
+  const actions=[];
+  if(inputs.ph && inputs.ph < 5.3){
+    actions.push({urg:'high',title:'Correct soil pH',chip:'Lime now', detail:'Apply calcitic lime 1–2 t/ha depending on soil texture. Test after 3 months.'});
+  }
+  if(inputs.som !== null && inputs.som !== undefined && inputs.som < 1.0){
+    actions.push({urg:'med',title:'Boost organic matter',chip:'Compost', detail:'Start composting; apply 2–5 t/ha demonstration strip.'});
+  }
+  if(inputs.moist !== null && inputs.moist !== undefined && inputs.moist < 12){
+    actions.push({urg:'high',title:'Irrigate',chip:'Irrigate now', detail:'Soil moisture low — irrigate or use micro-sprinkle. In paddy use AWD cycles.'});
+  } else if(inputs.moist >=12 && inputs.moist < 18){
+    actions.push({urg:'low',title:'Mulch',chip:'Mulch 3cm', detail:'Apply organic mulch to conserve moisture and feed soil life.'});
+  }
+  if(inputs.nitrate && inputs.nitrate > 40){
+    actions.push({urg:'high',title:'Stop soluble N',chip:'Stop N', detail:'High nitrate detected — stop soluble N application and plant cover crops.'});
+  }
+  if(inputs.temp && inputs.temp >= 38){
+    actions.push({urg:'high',title:'Heat alert',chip:'Shade/irrigate', detail:'High temperature — provide shade and irrigate early morning.'});
+  }
+  if(inputs.crop && inputs.crop !== 'legume'){
+    actions.push({urg:'med',title:'Sow Legume cover',chip:'Sow legume', detail:'Sow sunn hemp or sesbania in fallow to fix N and build biomass.'});
+  }
+  return actions;
+}
+
+function buildRoadmap(){
+  return [
+    {title:'0–3 months', items:['Start compost demo strip (2 t/ha)','Establish 1m flowering strip at field edge','Mulch and protect seedlings']},
+    {title:'3–12 months', items:['Rotate with legume cover crops','Move to reduced till where possible','Install simple moisture checks weekly']},
+    {title:'1–5 years', items:['Plant hedgerow trees (Gliricidia)','Form compost cooperative','Set SOM target (+0.5% in 3 years)']}
+  ];
+}
+
+// render functions
+function updateGauge(key,val){
+  const arc = document.getElementById('g_'+key+'-arc');
+  const label = document.getElementById('g_'+key+'-label');
+  const read = document.getElementById('g_'+key+'-read');
+  // mapping for gauge full arc angles
+  // we use start 30deg end 150deg (span 120deg). Map val relative to range to end angle
+  const minMap = {ph:3.5,temp:-10,moist:0,som:0,nitrate:0};
+  const maxMap = {ph:9,temp:50,moist:100,som:10,nitrate:200};
+  const v = (val === null || val === undefined || Number.isNaN(val)) ? null : Number(val);
+  // compute angle
+  const start = 30; const span = 120;
+  let perc = 0;
+  if(v === null) perc = 0; else {
+    const min = minMap[key]; const max = maxMap[key];
+    perc = clamp((v - min) / (max - min), 0, 1);
+  }
+  const endAngle = start + span * perc;
+  const path = arcPath(60,60,48,start,endAngle);
+  if(arc) arc.setAttribute('d', path);
+  if(label) label.textContent = v===null? '—' : (key==='ph' ? v.toFixed(1) : (key==='temp'? v.toFixed(0): (key==='nitrate'? v.toString(): v.toFixed(0))));
+  if(read) read.textContent = (v===null? '—' : (key==='ph' ? v.toFixed(1) : (key==='temp'? v.toFixed(0)+'°C' : (key==='moist' ? v.toFixed(0)+'%' : (key==='som'? v.toFixed(1)+'%': (key==='nitrate'? v.toFixed(0)+' mg/L':''))))));
+}
+
+// initial gauge arcs (empty)
+['ph','temp','moist','som','nitrate'].forEach(k=>{
+  // set default arc to small
+  updateGauge(k,null);
+});
+
+// UI wiring
+el('analyzeBtn').addEventListener('click', ()=>{
+  const inputs = {
+    name: el('fname').value || 'Field',
+    ph: parseFloat(el('ph').value) || null,
+    som: parseFloat(el('som').value) || null,
+    moist: parseFloat(el('moist').value) || null,
+    nitrate: parseFloat(el('nitrate').value) || null,
+    temp: parseFloat(el('temp').value) || null,
+    crop: el('crop').value,
+    notes: el('notes').value || ''
+  };
+  // update gauges
+  updateGauge('ph', inputs.ph);
+  updateGauge('temp', inputs.temp);
+  updateGauge('moist', inputs.moist);
+  updateGauge('som', inputs.som);
+  updateGauge('nitrate', inputs.nitrate);
+
+  // compute score & est CO2
+  const scoreObj = computeScore(inputs);
+  el('score').textContent = scoreObj.score + '/100';
+  const est = estimateCO2(inputs);
+  el('estCO2').textContent = est.toFixed(2);
+  el('summaryShort').textContent = `${inputs.name} • SOM ${inputs.som||'n/a'}% • N ${inputs.nitrate||'n/a'} mg/L`;
+
+  // actions
+  const acts = immediateActions(inputs);
+  renderActions(acts);
+  el('priority').textContent = acts.length ? acts[0].chip : 'No urgent action';
+  el('priorityShort').textContent = acts.length ? acts[0].title : 'All looks stable for now';
+
+  // roadmap
+  const roadmap = buildRoadmap();
+  const rcont = el('roadmapContainer');
+  rcont.innerHTML = roadmap.map(r=>`<div class="road-card"><strong>${r.title}</strong><ul style="margin:6px 0 0 16px">${r.items.map(i=>`<li style="margin-bottom:6px">${i}</li>`).join('')}</ul></div>`).join('');
+
+  // explain box content
+  const expl = el('explainBox');
+  expl.innerHTML = `<ul><li><strong>SOM:</strong> organic matter stores water & carbon and feeds microbes.</li><li><strong>pH:</strong> sets nutrient availability; liming fixes strong acidity.</li><li><strong>Moisture:</strong> low moisture causes stress, high moisture in rice affects CH₄ risk.</li><li><strong>Nitrate:</strong> high values show leaching risk — use cover crops to capture residual N.</li></ul>`;
+});
+
+// render action chips
+function renderActions(actions){
+  const c = el('actionsContainer');
+  c.innerHTML = '';
+  actions.forEach(a=>{
+    const div = document.createElement('div');
+    div.className = 'action-chip ' + (a.urg==='high'?'urg-high':(a.urg==='med'?'urg-med':'urg-low'));
+    div.innerHTML = `
+      <div class="icon-box">${a.chip}</div>
+      <div style="flex:1">
+        <div style="font-weight:800">${a.title}</div>
+        <div class="action-bullets">${a.detail}</div>
+      </div>
+      <div style="margin-left:8px"><button class="btn ghost" onclick="showExplain('${escapeHtml(a.title)}','${escapeHtml(a.detail)}')">Details</button></div>
+    `;
+    c.appendChild(div);
+  });
+  if(actions.length===0){
+    c.innerHTML = '<div class="muted">No immediate actions suggested. Keep monitoring weekly.</div>';
+  }
+}
+
+function showExplain(title, detail){
+  el('explainBox').style.display = 'block';
+  el('explainBox').innerHTML = `<strong>${title}</strong><div style="margin-top:6px">${detail}</div>`;
+}
+
+// save / profiles
+el('saveProfile').addEventListener('click', ()=>{
+  const name = el('fname').value || prompt('Profile name?') || ('profile_'+Date.now());
+  const p = {
+    name,
+    ph: parseFloat(el('ph').value) || null,
+    som: parseFloat(el('som').value) || null,
+    moist: parseFloat(el('moist').value) || null,
+    nitrate: parseFloat(el('nitrate').value) || null,
+    temp: parseFloat(el('temp').value) || null,
+    crop: el('crop').value,
+    notes: el('notes').value || ''
+  };
+  localStorage.setItem('rf_profile_'+name, JSON.stringify(p));
+  refreshProfiles();
+});
+function refreshProfiles(){
+  const cont = el('profiles'); cont.innerHTML='';
+  Object.keys(localStorage).filter(k=>k.startsWith('rf_profile_')).forEach(k=>{
+    try{
+      const p = JSON.parse(localStorage.getItem(k));
+      const btn = document.createElement('div'); btn.className='chip'; btn.style.padding='8px'; btn.style.borderRadius='8px'; btn.style.background='#f3fbf9'; btn.style.border='1px solid var(--card-border)'; btn.style.cursor='pointer';
+      btn.textContent = p.name;
+      btn.onclick = ()=>{
+        el('fname').value = p.name; el('ph').value = p.ph; el('som').value = p.som; el('moist').value = p.moist; el('nitrate').value = p.nitrate; el('temp').value = p.temp; el('crop').value = p.crop; el('notes').value = p.notes || '';
+        el('analyzeBtn').click();
+      };
+      cont.appendChild(btn);
+    }catch(e){}
+  });
+}
+refreshProfiles();
+
+el('clearBtn').addEventListener('click', ()=>{
+  ['fname','ph','som','moist','nitrate','temp','notes'].forEach(id=>el(id).value='');
+  ['ph','temp','moist','som','nitrate'].forEach(k=>updateGauge(k,null));
+  el('score').textContent='—';
+  el('estCO2').textContent='—';
+  el('summaryShort').textContent='Enter values and press Analyze';
+  el('actionsContainer').innerHTML='';
+  el('priority').textContent='—';
+  el('priorityShort').textContent='—';
+  el('roadmapContainer').innerHTML='';
+  el('explainBox').style.display='none';
+});
+
+el('loadSample').addEventListener('click', ()=>{
+  el('fname').value = sample.name;
+  el('ph').value = sample.ph;
+  el('som').value = sample.som;
+  el('moist').value = sample.moist;
+  el('nitrate').value = sample.nitrate;
+  el('temp').value = sample.temp;
+  el('crop').value = sample.crop;
+  el('notes').value = sample.notes;
+  el('analyzeBtn').click();
+});
+
+el('downloadReport').addEventListener('click', ()=>{
+  const txt = document.createElement('div');
+  const latest = {
+    name: el('fname').value || 'Field',
+    ph: el('ph').value, som: el('som').value, moist: el('moist').value, nitrate: el('nitrate').value, temp: el('temp').value, crop: el('crop').value
+  };
+  const score = computeScore(latest).score;
+  const est = estimateCO2(latest);
+  const html = `<div style="font-family:Arial;padding:20px;color:#0b3b35"><h2>Field report: ${latest.name}</h2><p><strong>Score:</strong> ${score}/100 &nbsp;&nbsp;<strong>Estimated CO2e/ha/yr:</strong> ${est.toFixed(2)}</p><h3>Immediate actions</h3><div>${el('actionsContainer').innerHTML}</div><h3>Roadmap</h3>${el('roadmapContainer').innerHTML}<p style="font-size:12px;color:#556b6b">Prototype advisory only.</p></div>`;
+  const w = window.open('','_blank');
+  w.document.write(html); w.document.close();
+});
+
+el('printPage').addEventListener('click', ()=>el('downloadReport').click());
+
+// helper to escape quotes for onclick
+function escapeHtml(s){ return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
